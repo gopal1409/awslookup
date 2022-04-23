@@ -1,0 +1,26 @@
+---
+- name: Lookup EC2 Instance Data
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  vars:
+    aws_credential: "{{ lookup('hashi_vault', 'secret=kv/aws_credentials')}}"
+  tasks:
+    - name: Gather EC2 Facts
+      ec2_instance_info:
+        region: "{{ aws_credential.aws_default_region }}"
+        filters:
+          instance-state-name: [ "running" ]
+        aws_access_key: "{{ aws_credential.aws_access_key_id }}"
+        aws_secret_key: "{{ aws_credential.aws_secret_access_key }}"
+      delegate_to: localhost
+      register: ec2_instances
+    
+    - name: Determine Public IPs from EC2 Facts
+      set_fact:
+        ec2_public_ips: "{{ ec2_instances | json_query('instances[*].public_ip_address') }} "
+      
+    - name: Output Running EC2 Public IPs
+      debug:
+        var: ec2_public_ips
+...
